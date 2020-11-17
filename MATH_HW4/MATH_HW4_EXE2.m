@@ -54,8 +54,7 @@ v = [vx;vy;vz]
 
 a=5 % set a to some value 
 
-% Now try analytically prove L(a*u+v) = a*L(u)+L(v)  (knowing that it is
-% linear)
+% Now try analytically prove L(a*u+v) = a*L(u)+L(v)  
 % a*u+v =:
 % 5*ux + vx
  %5*uy + vy
@@ -75,7 +74,8 @@ result = left_side_of_equation - right_side_of_equation
 % We see that result is non zero vector because equations are not equal. 
 % the reason for that is because Y(x,y,z) in B(x,y,z) has constant biase 2
 % when we calculate jacobian by taking derivatives. Derivative of a
-% constant were 0 and bias of 2 were eliminated from equation. 
+% constant were 0 and bias of 2 were eliminated from equation.
+% Therefore transformation is not linear
 
 
 
