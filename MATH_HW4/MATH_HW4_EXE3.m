@@ -2,9 +2,6 @@ clc
 clear
 % exe3
 
-
-%space of linear polynomials of a degree 2 is defined by
-
 syms p(x) a1 a2 a3 x 
 
 %space of linear polynomials of a degree 2 is defined by
@@ -15,12 +12,8 @@ pb1 = [1;0;0]
 pb2 = [0;x;0]
 pb3 = [0;0;x*x]
 
-%and matrix
-%PB = [pb1,pb2,pb3]
 % thus polenomial can be represented as a vector p
 p1 = [a1;a2;a3]
-%result = PB*p1
-
 
 
 % (b) : 
