@@ -8,7 +8,7 @@ clear
 % V = [vx;vy;vz] - velocity vector field ( vector valued function)
 % in our case V = [vx(x)]
 
-% lets writte down left part of equation:
+% lets writte down left part of equation (page 26 CFD):
 % rho pd(vx)/pdt + rho * dot(V ,  gradient(vx))  
 
 %devide by rho we obtain
@@ -115,7 +115,8 @@ end % end for
 
 % Main loop
 figure (1)
-
+%axis equal
+axis ([-30 30 -30 30])
 for tn =1:time_cells_number-1 % for every timedtep
     dt = t(tn+1) -t(tn);
     %Now set boundaty conditions in ghost cells
@@ -126,8 +127,11 @@ for tn =1:time_cells_number-1 % for every timedtep
         dx = X(xi+1)-X(xi);  
         dx = abs(dx);
         % update Vx at cell with xi index
-        Vx(tn+1,xi) = Vx(tn,xi) - dt*Vx(tn,xi) * (  Vx(tn,xi) - Vx(tn,xi-1)  ) /dx ;
-        %Vx(tn+1,xi) = Vx(tn,xi) - dt*Vx(tn,xi) * (  Vx(tn,xi+1) - Vx(tn,xi)  ) /dx ;
+        %Vx(tn+1,xi) = Vx(tn,xi) - dt*Vx(tn,xi) * (  Vx(tn,xi) - Vx(tn,xi-1)  ) /dx ;
+        
+        %u_new(i)=u_old(i)-deltat*(u_old(i+1)-u_old(i-1))/(2*deltax)*u_old(i);
+        %Vx(tn+1,xi) = Vx(tn,xi) - dt* (Vx(tn,xi+1) -Vx(tn,xi-1) )/(2*dx)*Vx(tn,xi);
+        Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (0.5 * (Vx(tn,xi))^2 - 0.5 * (Vx(tn,xi-1))^2); % correct solution
         
     end % end for 
     
@@ -137,8 +141,8 @@ for tn =1:time_cells_number-1 % for every timedtep
     text(X(xi-int16(size(X,2)/2)),Vx(tn,xi-int16(size(X,2)/2)),"Oh myyy")
     pause(0.01)
 end %end main
-clf
-text(0.5,0.5,"Damn !!!");
+%clf
+%text(0.5,0.5,"Damn !!!");
 % NOTE :
 % update formula for Vx in next time cell is not as we have derived it
 % previously
@@ -176,3 +180,105 @@ end %end main
 
 % Change forward numerical derivative into backward and it will work
 %Vx(tn+1,xi) = Vx(tn,xi) - dt*Vx(tn,xi) * (  Vx(tn,xi) - Vx(tn,xi-1)  ) /dx ;
+
+
+
+% ∫  ∂  ρ
+
+% Lets derive different form of Burgers equation:
+%∂Vx/∂t + vx* ∂Vx/∂x = 0  (1.0)  ###
+% lets rewrite is as 
+% Vx,t + Vx*Vx,x = 0      (1.0)  ###
+
+% Where  Vx,t Vx,t are derivatives with respect to t and x
+
+% Referring to page 35 of CFD Burgers equation can also be defined as:
+% Vx,t + f(Vx),x = 0 (1.1) ########3
+% Where f(Vx) = 1/2 Vx"2    Flux function 
+% We can verify it by taking derivative of ∂f(Vx) /∂x
+% ∂f(Vx) /∂x = ∂f(Vx)/ ∂Vx   * ∂Vx/∂x  = 2/2 Vx * ∂Vx/∂x
+
+% Lets take double integral of left and right hand sides of Burgers
+% equation
+
+% 0t∫ab∫ (Vx,t + f(Vx),x )dxdt = 0
+
+% Using property - integral of sym is equal to summ of integrals
+
+% 0t∫ab∫ (Vx,t + f(Vx),x )dxdt = 0t∫ab∫Vx,t dxdt +0t∫ab∫f(Vx),x dxdt = 0
+% (1.1)###############
+% where :
+% 0t∫ - definate integral from 0 to t
+% ab∫  - definate integral from a to b
+% f(Vx) = Vx"2/2 - flux function 
+% f(Vx),x - notation for derivative with respect to x  : Note that Vx(x,t)
+% x = a , x=b   are boundary conditions (length)
+
+%lets consider second term of right hand side  0t∫ab∫f(Vx),x dxdt 
+
+
+% we see that f(Vx),x is a derivative of flux function with respect to x,
+% therefore integral of the derivative would be the function itself 
+
+%0t∫ab∫f(Vx),x dxdt = 0t∫ ab|f(Vx) dt
+%0t∫ab∫f(Vx),x dxdt = 0t∫ [f(Vx(x=b,t)) - f(Vx(x=a,t))] dt
+
+% By substituting f(Vx) = Vx"2 /2 into definate integral we get :
+% 0t∫ab∫f(Vx),x dxdt = 0t∫ [(Vx(x=b,t))"2/2 - (Vx(x=a,t))"2/2 ] dt
+
+% Recall boundary conditions : Vx(x=a) = 1.2 m/s  Vx(x=b) = 0.4 m/s 
+% By defination velocity is constant at boundary conditions, therefore we
+% are integration over constants
+% 0t∫ [(Vx(x=b,t))"2/2 - (Vx(x=a,t))"2/2 ] dt = 0t∫ [Vx(b) -Vx(a)]dt =
+% = 0t| [Vx(b)"2/2-Vx(a)"2/2]t = [Vx(b)"2/2-Vx(a)"2/2]t
+
+% 0t∫ab∫f(Vx),x dxdt = [Vx(b)"2/2-Vx(a)"2/2]t    (1.2)########
+
+% Note that Vx(b) and Vx(a) are known constants from boundary conditions
+
+
+% Lets look again on equation :
+% 0t∫ab∫ (Vx,t + f(Vx),x )dxdt = 0t∫ab∫ Vx,t dxdt +0t∫ab∫f(Vx),x dxdt
+% Second term of right hand side we already derived 
+%Focus on right hand side first term 
+% 0t∫ab∫ Vx,t dxdt
+
+% We can change the order of integration 
+% 0t∫ab∫ Vx,t dxdt = ab∫0t∫ Vx,t dtdx
+%As our definate integral limits are constants we can do it withoit
+%recalculating intervals 
+
+% https://math.stackexchange.com/questions/1737230/order-of-integration-for-multiple-can-be-easily-swapped-if-limits-are-constants
+
+% ab∫0t∫ Vx,t dtdx = ab∫ [Vx(x,t)-Vx(x,0)]  (1.3) ###########
+
+% Now we again use sum of integrals property
+%ab∫ [Vx(x,t)-Vx(x,0)] = ab∫Vx(x,t) - ab∫Vx(x,0)  ## (1.4)
+
+
+% We are ready to substitute all derived componets into 1.1 equation to get
+
+% ab∫Vx(x,t) - ab∫Vx(x,0) + [Vx(b)"2/2-Vx(a)"2/2]t  = 0  (1.5) ####
+
+% From which we derive 
+% ab∫Vx(x,t) = ab∫Vx(x,0) - [Vx(b)"2/2-Vx(a)"2/2]t   (1.6) ####
+
+% However this is continious analytical equation. It wont work applied to
+% discrete problem
+
+
+
+% We do it by going back to equation 1.1
+% 0t∫ab∫Vx,t dxdt +0t∫ab∫f(Vx),x dxdt = 0
+
+% and instead of integration over whole length and time period - we
+% integrate over a time cell and cell length
+
+%tn:tn+1∫xi:xi+1∫Vx,t dxdt +tn:tn+1∫tn+1∫f(Vx),x dxdt = 0
+
+% We repeat all the previos steps and end up with discrete equation
+% instead a and b we substitude xi-1 and xi+1
+% instead 0 and t we substitute tn and tn+1
+
+% finall equation :
+% Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (0.5 * (Vx(tn,xi))^2 - 0.5 * (Vx(tn,xi-1))^2); % correct solution
