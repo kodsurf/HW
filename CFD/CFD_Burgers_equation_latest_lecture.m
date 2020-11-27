@@ -2,6 +2,7 @@
 clc
 clear
 % CFD 
+%{
 
 %Lets consider 1D example of conservation of momentim equation:
 % rho - density
@@ -399,6 +400,7 @@ end %end main
 % Now lets clear all the variables and make a fresh code for burgers
 % equation considering forces
 
+%}
 clc
 clear
 
@@ -406,6 +408,7 @@ clear
 
 % Number of cells
 real_cells = 100
+ghost_cells = 10 % should be even
 
 % ------ Pipe length 
 x0 = -pi/2
@@ -413,15 +416,13 @@ x_end = pi/2
 
 % Time of computation and timestep 
 tMax = 5
-dt = 0.01
+dt = 0.002
 
 
 % Boundary conditions for velocities ( Maximum minimum velocity)
 Vx_x0 = 1.2
 Vx_xend = 0.4
 
-% Pressure in a pipe
-const_pressure = 5;
 
 % Viscosity 
 const_mu = 5.3
@@ -429,6 +430,8 @@ const_mu = 5.3
 % Density 
 
 const_rho = 1000;
+rho_x0 = 1
+rho_xend = 0.125
 
 % Specific kinetic energy
 e_x0 = 2.5
@@ -441,9 +444,9 @@ gamma = 1.4
 % ---------------------- INITIALIZATION
 
 % Initialize X cells -------------------
-dX = (abs(x0 -x_end))/(real_cells-2);
+dX = (abs(x0 -x_end))/(real_cells-ghost_cells);
 
-for i=1:real_cells+2
+for i=1:real_cells+ghost_cells
     X(i) = x0 +(i-3/2)*dX;
 end
 
@@ -464,7 +467,8 @@ for i= 1:size(X,2)
     
 end % end for
 
-
+Vx(1,1:int16(size(X,2)/2)) = Vx_x0;
+Vx(1,(int16(size(X,2)/2):end)) = Vx_xend;
 
 
 % Initialize density
@@ -473,6 +477,8 @@ for i= 1:size(X,2)
     rho(1,i) = const_rho*sin(X(i)-pi);
 end % end for
 
+rho(1,1:int16(size(X,2)/2)) = rho_x0;
+rho(1,(int16(size(X,2)/2):end)) = rho_xend;
 
 %Initialize viscosity
 muu(1,1:size(X,2)) = const_mu;
@@ -482,16 +488,17 @@ e( 1,1:int16(size(X,2)/2) ) = e_x0
 e( 1, int16(size(X,2)/2):size(X,2)) = e_xend
 
 % Initialize Pressure
-P(1,1:size(X,2)) = const_pressure % constant pressure
+%P(1,1:size(X,2)) = const_pressure % constant pressure
 
 % Some function to make a pressure difference along the pipe
-for i= 1:size(X,2)
-    P(1,i) = const_pressure*sin(X(i)-pi)
-end % end for
+%for i= 1:size(X,2)
+    %P(1,i) = const_pressure*sin(X(i)-pi)
+%end % end for
 
-P(1,1:int16(size(X,2)/2)) = const_pressure
-P(1,int16(size(X,2)/2):end) = const_pressure/2
+%P(1,1:int16(size(X,2)/2)) = const_pressure
+%P(1,int16(size(X,2)/2):end) = const_pressure/2
 
+P(1,1:size(X,2)) = 0 % initialization of array
 P (1, 1:int16(size(X,2)/2)) = (gamma-1).*rho(1,1:int16(size(X,2)/2)).* (  e(1,1:int16(size(X,2)/2))- 0.5 .*Vx(1,1:int16(size(X,2)/2)) .*Vx(1,1:int16(size(X,2)/2))   )
 P (1, int16(size(X,2)/2):end) = (gamma-1).*rho(1,int16(size(X,2)/2):end).* (  e(1,int16( size(X,2)/2 ):end)- 0.5 .*Vx(1,int16(size(X,2)/2):end) .*Vx(1,int16(size(X,2)/2):end)   )
 % -------------------------------- MAIN LOOP ------------------
@@ -502,24 +509,61 @@ for tn = 1:(size(t,2)-1) % for every time step
     total_t = total_t+dt
     
     %Update boundaty conditions in ghost cells
-    Vx(tn,1) = Vx_x0;
-    Vx(tn,end) = Vx_xend;
     
-    muu(tn,:) = muu(1,:); 
-    %assuming that density and pressure not changing over time
-    rho(tn,:) = rho(1,:);
-    P(tn,:) = P(1,:);
-    for xi = 2:(size(X,2)-1) % for every REAL position cell
+    %Boundary Velocity
+    Vx(tn,1:(ghost_cells/2)) = Vx_x0;
+    Vx(tn,(end-ghost_cells/2):end) = Vx_xend;
+    
+    % Boundary Density
+    rho(tn,1:(ghost_cells/2)) = rho_x0;
+    rho(tn,(end-ghost_cells/2):end) = rho_xend;
+    
+    %Boundary Pressure
+    
+    P(tn,1:(ghost_cells/2)) = P(1,1:(ghost_cells/2));
+    P(tn,(end-ghost_cells/2):end) = P(1,(end-ghost_cells/2):end);
+    
+    % Boundary Specific energy 
+    
+    e(tn,1:(ghost_cells/2)) = e(1,1:(ghost_cells/2));
+    e(tn,(end-ghost_cells/2):end) = e(1,(end-ghost_cells/2):end);
+    
+    % Boundary Viscosity 
+    muu(tn,:) = muu(1,:); % viscosity is constant
+    
+    
+    for xi = (ghost_cells/2+1):(size(X,2)-(ghost_cells/2)) % for every REAL position cell
         dx = X(xi+1)-X(xi);  
         dx = abs(dx);
         
         
-        [fVx_p,fVx_m] = flux_func(tn,xi,Vx)
-        Pterm = -1/rho(tn,xi)*((P(tn,xi+1)-P(tn,xi-1))/(2 *dx))*dx *dt
-        Vterm = 4/3* muu(tn,xi)/rho(tn,xi)*( (Vx(tn,xi+1) -2 *Vx(tn,i) + Vx(tn,xi-1))/(dx*dx)  )*dx*dt
-        % main update equation
         
-        Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (fVx_p - fVx_m); % correct solution
+        [fVx_p,fVx_m] = flux_func(tn,xi,Vx);
+        S_v = -1/rho(tn,xi)*((P(tn,xi+1)-P(tn,xi-1))/(2 *dx))*dx *dt;
+        Vterm = 4/3* muu(tn,xi)/rho(tn,xi)*( (Vx(tn,xi+1) -2 *Vx(tn,i) + Vx(tn,xi-1))/(dx*dx)  )*dx*dt;
+        % main update equation
+        %Update velocity
+        Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (fVx_p - fVx_m) + S_v; % correct solution
+        
+        %Update density
+        [frho_p,frho_m] = flux_func(tn,xi,rho);
+        rho(tn+1,xi) = rho(tn,xi) - dt/dx*(frho_p-frho_m);
+        
+        
+        %Update specific kinetic energy
+        
+        %Source function for energy equation
+        [fe_p,fe_m] = flux_func(tn,xi,e);
+        S_e = - ( P(tn,xi+1)* Vx(tn,xi+1)  ) - P(tn,xi-1)*Vx(tn,xi-1)/(2*dx);
+        e(tn+1,xi) = rho(tn+1,xi) * ( rho(tn,xi)*e(tn,xi) -dt/dx*(fe_p-fe_m +S_e*dt)  );
+        
+        %Update pressure
+        
+        P (tn+1,xi) = (gamma-1).*rho(tn+1,xi).* (  e(tn+1,xi)- 0.5 .*Vx(tn+1,xi) .*Vx(tn+1,xi)   );
+        
+        
+        
+        
         
     end % end for every position cell
     
