@@ -175,6 +175,11 @@ for tn =1:time_cells_number-1 % for every timedtep
             
         end
         
+        
+        
+        %[fVx_DD,fVx_D] = flux_func(tn,xi,Vx)
+        [fVx_p,fVx_m] = flux_func(tn,xi,Vx)
+        
         Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (fVx_p - fVx_m); % correct solution
         
      
@@ -202,40 +207,11 @@ end %end main
 %if we plug originaly derived formula - distribution would not be correct
 % Vx(tn+1,xi) = Vx(tn,xi) - dt*Vx(tn,xi) * (  Vx(tn,xi+1) - Vx(tn,xi)  ) /dx ;
 
-% Lets try out with original (wrong) formula just for fun
-Vx_wrong(1,:) = Vx(1,:)
-tn = 1
-xi=1
-for tn =1:time_cells_number-1 % for every timedtep
-    dt = t(tn+1) -t(tn);
-    %Now set boundaty conditions in ghost cells
-    Vx_wrong(tn,1) = Vx_A;
-    Vx_wrong(tn,end) = Vx_B;
-    
-    for xi = 2:(size(X,2)-1) % for every REAL position cell
-        dx = X(xi+1)-X(xi);  
-        dx = abs(dx);
-        % update Vx at cell with xi index
-        %Vx_wrong(tn+1,xi) = Vx_wrong(tn,xi) - dt*Vx_wrong(tn,xi) * (  Vx_wrong(tn,xi) - Vx_wrong(tn,xi-1)  ) /dx ;
-        Vx_wrong(tn+1,xi) = Vx_wrong(tn,xi) - dt*Vx_wrong(tn,xi) * (  Vx_wrong(tn,xi+1) - Vx_wrong(tn,xi)  ) /dx ; % this is origonal formula
-        
-    end % end for 
-    
-    
-end %end main
-
-% And we indeed see that arround the middle element of Vx_wrong -
-% velocities is being accelerated. This is not what we expected.
-
-% This is because we have to calculate numerical derivative by sunstracting
-% cell value of Vx to the left instead of to the right
-
-% Change forward numerical derivative into backward and it will work
-%Vx(tn+1,xi) = Vx(tn,xi) - dt*Vx(tn,xi) * (  Vx(tn,xi) - Vx(tn,xi-1)  ) /dx ;
 
 
 
-% ∫  ∂  ρ
+
+% ∫  ∂  ρ μ  ∆ λ ∇ 
 
 % Lets derive different form of Burgers equation:
 %∂Vx/∂t + vx* ∂Vx/∂x = 0  (1.0)  ###
@@ -334,3 +310,244 @@ end %end main
 
 % finall equation :
 % Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (0.5 * (Vx(tn,xi))^2 - 0.5 * (Vx(tn,xi-1))^2); % correct solution
+
+
+
+
+% Now lets take a look on to right hand side of burgers equation.
+% Which are the summ of forces acting on a system
+% Previonsly we made a computation assuming that forces are 0
+% Lets edit our solution in order to take into account external forces
+
+% ∂Vx/∂t + vx* ∂Vx/∂x = - px/ρ +4/3 * Vx* μ / ρ 
+
+%Right hand side of equations seems to be originated from CFD lecture notes
+%page 26:
+
+% ∂(Vx*ρ)/∂t + ∇·(ρVxV) = -∂p/∂x +μ* ∆(Vx)+ (λ+μ) ∂(∇·V)/∂y 
+% ∇ · (ρVxV)
+
+%Where :
+% V - V(x,y,z) velocity vector
+% μ - dynamic viscosity
+% λ - "viscosity to relate stresses to the volumetric deformation" CFD
+% lecture notes page 24
+% p - p(x,y,z) pressure as a function of position
+
+% We are considering liquid incompressible flow therefore :
+% ∇ · V = 0 
+% Therefore we are neglecting (λ+μ) ∂(∇dotV)/∂y   term of righ hand side
+% Incompressible flow also implies that density ρ(x,y,z) is constant,
+% therefore we can take it out of equation as a constant value
+
+% ρ*∂(Vx)/∂t + ρ* ∇·(VxV) = -∂p/∂x +μ* ∆(Vx)
+
+% and devide by ρ
+
+% ∂(Vx)/∂t + ∇·(VxV) = (-∂p/∂x)/ρ +μ* ∆(Vx)/ρ
+
+% Lets also transform left hand side of equation to prove that it Burgers
+% equations is indeed derived from it
+
+% Focus on a term ∇·(VxV)
+% By the chain rule :
+% ∇·(VxV) = V* (∇·Vx) + Vx* (∇·V)
+% We know that incompressible, therefore (∇·V) = 0
+
+%Moreover we are considering 1D proplem along x axis thus V is function of only x
+%possition V(x)  V(x) = Vx
+
+% ∇·Vx divergence if Vx is simply Vx,x   because in 1D Vx(x) is a function
+% of only x
+
+% ∂(Vx)/∂t + Vx*(∂Vx/∂x)   = (-∂p/∂x)/ρ +μ* ∆(Vx)/ρ
+
+% Equation defined in 20 lecture is :
+%  ∂Vx/∂t + vx* ∂Vx/∂x = - p,x/ρ +4/3 * Vx,xx* μ / ρ 
+
+% Lets integrate right hand side the same way as we have integrated the
+% left hand side
+
+% NOTE we are inregrating with a limits of time step and x possition cell
+% tn:tn+1∫xi-1:xi+1∫(- p,x/ρ +4/3 * Vx,xx* μ / ρ ) dx dt
+
+% lets start with a term :
+% tn:tn+1∫xi-1:xi+1∫- p,x/ρ dx dt
+
+% Straith forward lets derive numerical sheme for thios integral 
+% tn:tn+1∫xi-1:xi+1∫- p,x/ρ dx dt = 
+% -[ 1/ρ(tn,xi) * p(tn,xi+1)-p(tn,xi-i)/(2 *Δx)]Δx Δt
+
+% Note that here we are using ρ as a function of time and possition, we
+% denoted it as a function to use further in a general case of compressible
+% flows. However for our numerical solution lets consider that ρ(x,t) is
+% constant everythere
+
+
+%Lets derive numerical scheme for second term 4/3 * Vx,xx* μ / ρ
+% tn:tn+1∫xi-1:xi+1∫4/3 * Vx,xx* μ / ρ   dx dt = 
+%  4/3*μ/ρ(tn,xi) *[((Vx(tn,xi+1 -2 *Vx(tn,i) + Vx(tn,xi-1))/  Δx"2 ]ΔxΔt
+
+% Finaly combining everything together numerical scheme for updating
+% Vx(tn+1,xi)
+
+% Vx(tn+1,xi) = Vx(tn,xi) -dt/dx*(F(xi+1)-F(xi-1) +4/3*μ/ρ(tn,xi)*[((Vx(tn,xi+1 -2 *Vx(tn,i) + Vx(tn,xi-1))/  Δx"2]ΔxΔt
+%  -[ 1/ρ(tn,xi) * p(tn,xi+1)-p(tn,xi-1)/(2 *Δx)]Δx Δt
+
+
+
+% Now lets clear all the variables and make a fresh code for burgers
+% equation considering forces
+
+clc
+clear
+
+% ------------ INITIAL PARAMETERS ------------------
+
+% Number of cells
+real_cells = 100
+
+% ------ Pipe length 
+x0 = -pi/2
+x_end = pi/2
+
+% Time of computation and timestep 
+tMax = 5
+dt = 0.01
+
+
+% Boundary conditions for velocities ( Maximum minimum velocity)
+Vx_x0 = 1.2
+Vx_xend = 0.4
+
+% Pressure in a pipe
+const_pressure = 5;
+
+% Viscosity 
+const_mu = 5.3
+
+% Density 
+
+const_rho = 1000;
+
+% Specific kinetic energy
+e_x0 = 2.5
+e_xend = 0
+
+% Gamma
+gamma = 1.4
+
+
+% ---------------------- INITIALIZATION
+
+% Initialize X cells -------------------
+dX = (abs(x0 -x_end))/(real_cells-2);
+
+for i=1:real_cells+2
+    X(i) = x0 +(i-3/2)*dX;
+end
+
+% Initialize Time cells 
+
+time_cells_number = int16( tMax / dt)
+t = linspace(0,tMax,time_cells_number);
+
+
+% Initialize Velocity
+
+for i= 1:size(X,2)
+    Vx(1,i) = Vx_x0*sin(X(i)-pi)
+    if Vx(1,i) < Vx_xend
+        Vx(1,i) = Vx_xend
+    end
+    
+    
+end % end for
+
+
+
+
+% Initialize density
+
+for i= 1:size(X,2)
+    rho(1,i) = const_rho*sin(X(i)-pi);
+end % end for
+
+
+%Initialize viscosity
+muu(1,1:size(X,2)) = const_mu;
+
+% Initialize Specific kinetic energy
+e( 1,1:int16(size(X,2)/2) ) = e_x0
+e( 1, int16(size(X,2)/2):size(X,2)) = e_xend
+
+% Initialize Pressure
+P(1,1:size(X,2)) = const_pressure % constant pressure
+
+% Some function to make a pressure difference along the pipe
+for i= 1:size(X,2)
+    P(1,i) = const_pressure*sin(X(i)-pi)
+end % end for
+
+P(1,1:int16(size(X,2)/2)) = const_pressure
+P(1,int16(size(X,2)/2):end) = const_pressure/2
+
+P (1, 1:int16(size(X,2)/2)) = (gamma-1).*rho(1,1:int16(size(X,2)/2)).* (  e(1,1:int16(size(X,2)/2))- 0.5 .*Vx(1,1:int16(size(X,2)/2)) .*Vx(1,1:int16(size(X,2)/2))   )
+P (1, int16(size(X,2)/2):end) = (gamma-1).*rho(1,int16(size(X,2)/2):end).* (  e(1,int16( size(X,2)/2 ):end)- 0.5 .*Vx(1,int16(size(X,2)/2):end) .*Vx(1,int16(size(X,2)/2):end)   )
+% -------------------------------- MAIN LOOP ------------------
+figure(2)
+total_t = 0
+for tn = 1:(size(t,2)-1) % for every time step
+    dt = t(tn+1) -t(tn);
+    total_t = total_t+dt
+    
+    %Update boundaty conditions in ghost cells
+    Vx(tn,1) = Vx_x0;
+    Vx(tn,end) = Vx_xend;
+    
+    muu(tn,:) = muu(1,:); 
+    %assuming that density and pressure not changing over time
+    rho(tn,:) = rho(1,:);
+    P(tn,:) = P(1,:);
+    for xi = 2:(size(X,2)-1) % for every REAL position cell
+        dx = X(xi+1)-X(xi);  
+        dx = abs(dx);
+        
+        
+        [fVx_p,fVx_m] = flux_func(tn,xi,Vx)
+        Pterm = -1/rho(tn,xi)*((P(tn,xi+1)-P(tn,xi-1))/(2 *dx))*dx *dt
+        Vterm = 4/3* muu(tn,xi)/rho(tn,xi)*( (Vx(tn,xi+1) -2 *Vx(tn,i) + Vx(tn,xi-1))/(dx*dx)  )*dx*dt
+        % main update equation
+        
+        Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (fVx_p - fVx_m); % correct solution
+        
+    end % end for every position cell
+    
+    scatter(X,Vx(tn,:));
+    text(X(xi),Vx(tn,xi),"we are accelerated")
+    timestring = sprintf("time passed = %0.5f",total_t);
+    text(x_end/2,Vx_x0/2,timestring)
+    pause(0.01)
+    
+end % end for every time step
+
+
+function [fVx_p,fVx_m] = flux_func(tn,xi,Vx)
+    if (0.5*(Vx(tn,xi)+Vx(tn,xi+1)) >=0) % flow from left to right fVx_p
+        fVx_p = 0.5 * (Vx(tn,xi))^2;
+            
+            
+        else % flow from left to right
+            fVx_p = 0.5 * (Vx(tn,xi+1))^2;
+            
+            
+    end
+    if 0.5*(Vx(tn,xi-1) +Vx(tn,xi)) >= 0 % if flow from left to right fVx_m
+            fVx_m = 0.5 * (Vx(tn,xi-1))* 0.5*(Vx(tn,xi-1) +Vx(tn,xi));
+            
+        else % if flow from right to left
+            fVx_m = 0.5 * (Vx(tn,xi+1))* 0.5*(Vx(tn,xi+1) +Vx(tn,xi));
+            
+        end
+
+end % end of Flux function
