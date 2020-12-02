@@ -407,16 +407,18 @@ clear
 % ------------ INITIAL PARAMETERS ------------------
 
 % Number of cells
-real_cells = 100
-ghost_cells = 10 % should be even
+real_cells = 160
+ghost_cells = 2 % should be even
 
 % ------ Pipe length 
-x0 = -pi/2
-x_end = pi/2
+%x0 = -pi/2
+%x_end = pi/2
+x0 = -1
+x_end =1
 
 % Time of computation and timestep 
 tMax = 5
-dt = 0.002
+dt = 1e-4
 
 
 % Boundary conditions for velocities ( Maximum minimum velocity)
@@ -444,10 +446,11 @@ gamma = 1.4
 % ---------------------- INITIALIZATION
 
 % Initialize X cells -------------------
-dX = (abs(x0 -x_end))/(real_cells-ghost_cells);
+dX = (abs(x0 -x_end))/(real_cells);
 
 for i=1:real_cells+ghost_cells
-    X(i) = x0 +(i-3/2)*dX;
+    %X(i) = x0 +(i-3/2)*dX;
+    X(i) = x0+(i-(ghost_cells/2+0.5))*dX;
 end
 
 % Initialize Time cells 
@@ -543,19 +546,20 @@ for tn = 1:(size(t,2)-1) % for every time step
         Vterm = 4/3* muu(tn,xi)/rho(tn,xi)*( (Vx(tn,xi+1) -2 *Vx(tn,i) + Vx(tn,xi-1))/(dx*dx)  )*dx*dt;
         % main update equation
         %Update velocity
-        Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (fVx_p - fVx_m) + S_v; % correct solution
+        Vx(tn+1,xi) = Vx(tn,xi) - dt/dx * (fVx_p - fVx_m)+ S_v;% correct solution
         
         %Update density
         [frho_p,frho_m] = flux_func(tn,xi,rho);
         rho(tn+1,xi) = rho(tn,xi) - dt/dx*(frho_p-frho_m);
+        %rho(tn+1,xi) = rho(1,xi); % constant density
         
         
         %Update specific kinetic energy
         
         %Source function for energy equation
-        [fe_p,fe_m] = flux_func(tn,xi,e);
+        [F_e_ip,F_e_im] = energy_flux(tn,xi,e,Vx,rho);
         S_e = - ( P(tn,xi+1)* Vx(tn,xi+1)  ) - P(tn,xi-1)*Vx(tn,xi-1)/(2*dx);
-        e(tn+1,xi) = rho(tn+1,xi) * ( rho(tn,xi)*e(tn,xi) -dt/dx*(fe_p-fe_m +S_e*dt)  );
+        e(tn+1,xi) = rho(tn+1,xi) * ( rho(tn,xi)*e(tn,xi) -dt/dx*(F_e_ip-F_e_im +S_e*dt)  );
         
         %Update pressure
         
@@ -571,7 +575,7 @@ for tn = 1:(size(t,2)-1) % for every time step
     text(X(xi),Vx(tn,xi),"we are accelerated")
     timestring = sprintf("time passed = %0.5f",total_t);
     text(x_end/2,Vx_x0/2,timestring)
-    pause(0.01)
+    pause(1e-10)
     
 end % end for every time step
 
@@ -587,11 +591,36 @@ function [fVx_p,fVx_m] = flux_func(tn,xi,Vx)
             
     end
     if 0.5*(Vx(tn,xi-1) +Vx(tn,xi)) >= 0 % if flow from left to right fVx_m
-            fVx_m = 0.5 * (Vx(tn,xi-1))* 0.5*(Vx(tn,xi-1) +Vx(tn,xi));
+            fVx_m = 0.5 * (Vx(tn,xi-1))*(Vx(tn,xi-1) );
             
         else % if flow from right to left
-            fVx_m = 0.5 * (Vx(tn,xi+1))* 0.5*(Vx(tn,xi+1) +Vx(tn,xi));
+            fVx_m = 0.5 * (Vx(tn,xi+1))*(Vx(tn,xi+1));
             
         end
+
+end % end of Flux function
+
+
+function [F_e_ip,F_e_im] = energy_flux(tn,xi,e,Vx,rho)
+    if (0.5*(Vx(tn,xi)+Vx(tn,xi+1)) >=0) % flow from left to right fVx_p
+        F_e_ip=rho(tn,xi)*Vx(tn,xi)*e(tn,xi);
+        
+            
+            
+     else % flow from left to right
+         F_e_ip=rho(tn,xi+1)*Vx(tn,xi+1)*e(tn,xi+1);
+            
+            
+            
+    end
+    if 0.5*(Vx(tn,xi-1) +Vx(tn,xi)) >= 0 % if flow from left to right fVx_m
+        F_e_im=rho(tn,xi-1)*Vx(tn,xi-1)*e(tn,xi-1);
+            
+            
+    else % if flow from right to left
+        F_e_im=rho(tn,xi)*Vx(tn,xi)*e(tn,xi);
+        
+            
+    end
 
 end % end of Flux function
