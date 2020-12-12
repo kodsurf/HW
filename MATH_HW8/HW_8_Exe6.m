@@ -52,6 +52,7 @@ X = r*cos(THETA);
 Y = r*sin(THETA);
 [gg,Z] = meshgrid(x,z);
 figure(1)
+axis equal
 hold on
 surf(X,Y,Z)
 
@@ -82,6 +83,7 @@ X = r*cos(THETA);
 Y = r*sin(THETA);
 [gg,Z] = meshgrid(x,z);
 figure(2)
+axis equal
 hold on
 surf(X,Y,Z)
 
