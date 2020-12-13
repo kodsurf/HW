@@ -203,6 +203,8 @@ figure(6)
 
 
 plot(h,D_rho)
+
+title('Thrust avaliable T(h)[N] with respect to altitude [m]')
 grid on
 grid minor
 xlabel('altitude h [m]') 
@@ -267,3 +269,58 @@ txtString = sprintf("Avaliable thrust: %0.2fN",maxThrust);
 text((size(V,2)/2-30),(maxThrust+55),txtString);
 
 hold off
+
+
+
+clc
+clear
+
+% Now derive analytically those results 
+
+syms D(V)
+L = 4263 % 4.263 kN
+S = 3.51 % m"2 %wing planform area
+[Temp0, a0, Pressure0, rho0] = atmosisa(0) % Model for standart atmospheric conditions
+h = densityalt(rho0)%  converts from rho to altitude in m
+rho = rho0
+%D(V) = 1/2*rho*S*(0.02+0.062*(2*L/(rho*V*V*S)))*V*V
+%dD_dV = diff(D(V),V)
+%equation = dD_dV ==0
+%solution = solve(equation)
+% Does not work automatic solution
+
+% from lecture notes :
+K =0.062
+Cd_0 = 0.02
+%V_Dmin = sqrt(2/rho  * sqrt(0.062/0.02)*L/S) % 59.0869 at sea level
+V_Dmin_sea = sqrt(2/rho  * sqrt(K/Cd_0)*L/S) % 59.0869 at sea level
+
+% At 3000m
+[Temp0, a0, Pressure0, rho1] = atmosisa(3048) % Model for standart atmospheric conditions
+rho=rho1
+V_Dmin_h1 = sqrt(2/rho  * sqrt(K/Cd_0)*L/S) %  68.7579 m/s at 3048m
+
+
+
+
+
+% Now analytically calculate required thrust at found velocities
+
+% At sea level 
+%1) Calculate lift coefficient knowing lift force L and velocity V 
+[Temp0, a0, Pressure0, rho0] = atmosisa(0) % Model for standart atmospheric conditions
+Cl = 2*L/(rho0*V_Dmin_sea*V_Dmin_sea*S)
+% calculate Cd 
+% Cd =  Cd,0 +K*Cl*Cl
+Cd = 0.02+0.062*Cl*Cl
+% Calculate drag
+% D = 1/2 * Cd * rho *V*V*S
+Dmin_sea = 1/2*Cd*rho0*V_Dmin_sea*V_Dmin_sea*S % 300.2314 N
+
+
+
+% At 3048 m
+[Temp1, a1, Pressure1, rho1] = atmosisa(3048) % Model for standart atmospheric conditions
+Cl = 2*L/(rho1*V_Dmin_h1*V_Dmin_h1*S)
+Cd = 0.02+0.062*Cl*Cl
+Dmin_h1 = 1/2*Cd*rho1*V_Dmin_h1*V_Dmin_h1*S % 300.2314 N
